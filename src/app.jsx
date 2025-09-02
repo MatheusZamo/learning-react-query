@@ -1,54 +1,174 @@
 import { useQuery } from "@tanstack/react-query"
 import { useState } from "react"
 
-const fetchUsers = (username) =>
-  fetch(`https://api.github.com/users/${username}`)
+const fetchIssues = (activeLabels) => {
+  const labelsParam =
+    activeLabels.length === 0
+      ? ""
+      : `?labels=${activeLabels.map((label) => label.name).join(",")}`
+
+  return fetch(
+    `https://api.github.com/repos/frontendbr/vagas/issues${labelsParam}`,
+  )
     .then((res) => res.json())
-    .then((data) => ({
-      id: data.id,
-      name: data.name,
-      avatarUrl: data.avatar_url,
-    }))
+    .then((data) => {
+      return data.map((issue) => ({
+        id: issue.id,
+        state: issue.state,
+        title: issue.title,
+        createdAt: issue.created_at,
+        author: { name: issue.user.login, avatar: issue.user.avatar_url },
+        labels: issue.labels.map((label) => ({
+          id: label.id,
+          color: label.color,
+          name: label.name,
+        })),
+        url: issue.html_url,
+      }))
+    })
+}
 
-const usernames = ["Roger-Melo", "ryanflorence", "getify", "gaearon"]
+const fetchLabels = () =>
+  fetch(`https://api.github.com/repos/frontendbr/vagas/labels?per_page=100`)
+    .then((res) => res.json())
+    .then((data) => {
+      return data.map((label) => ({
+        id: label.id,
+        name: label.name,
+        color: label.color,
+      }))
+    })
 
-const UserPicker = ({ onChangeUser }) =>
-  usernames.map((_, i) => (
-    <button key={usernames[i]} onClick={() => onChangeUser(i)}>
-      Usuário {`${i + 1}`}
-    </button>
-  ))
+const getFormattedDate = (date) => {
+  const [year, month, day] = date.split("T")[0].split("-")
+  return `${day}/${month}/${year}`
+}
 
-const User = ({ data, username }) => (
-  <>
-    <h1>
-      Usuário {usernames.indexOf(username) + 1}: {data.name}
-    </h1>
-    <img src={data.avatarUrl} alt={`Foto de ${data.name}`} />
-  </>
+const Label = ({ isActive = false, label, onClickLabel }) => (
+  <button
+    onClick={() => onClickLabel(label)}
+    className={`label ${isActive ? "activeLabel" : ""}`}
+    style={{ backgroundColor: `#${label.color}` }}
+  >
+    {label.name}
+  </button>
 )
 
-const Users = () => {
-  const [username, setUsername] = useState(usernames[0])
-  const { isError, error, isLoading, isSuccess, data } = useQuery({
-    queryKey: ["user", username],
-    queryFn: () => fetchUsers(username),
+const IssueItem = ({
+  state,
+  title,
+  createdAt,
+  labels,
+  author,
+  url,
+  onClickLabel,
+}) => (
+  <li>
+    <span>{state}</span>
+    <h3>
+      <a href={url} target="_blank" rel="noreferrer">
+        {title}
+      </a>
+    </h3>
+    <div className="createdBy">
+      <p>
+        Criada em {getFormattedDate(createdAt)}, por {author.name}
+      </p>
+      <img src={author.avatar} alt={`Foto de ${author.name}`} />
+    </div>
+    {labels.length > 0 && (
+      <p>
+        Labels:
+        {labels.map((label) => (
+          <Label key={label.id} onClickLabel={onClickLabel} label={label} />
+        ))}
+      </p>
+    )}
+  </li>
+)
+
+const IssuesList = ({ activeLabels, onClickLabel }) => {
+  const { isError, isSuccess, isLoading, data, error } = useQuery({
+    queryKey: [
+      "issues",
+      { activeLabels: activeLabels.map(({ name }) => name) },
+      activeLabels,
+    ],
+    queryFn: () => fetchIssues(activeLabels),
     refetchOnWindowFocus: false,
     staleTime: Infinity,
   })
-
-  const changeUser = (i) => setUsername(usernames[i])
-
   return (
-    <>
-      <UserPicker onChangeUser={changeUser} />
-      {isLoading && <p>Carregando informações...</p>}
+    <div className="issuesListContainer">
+      <h1>Vagas</h1>
       {isError && <p>{error.message}</p>}
-      {isSuccess && <User data={data} username={username} />}
-    </>
+      {isLoading && <p>Carregando Informações...</p>}
+      {isSuccess && (
+        <ul className="issuesList">
+          {data.map((issue) => (
+            <IssueItem key={issue.id} onClickLabel={onClickLabel} {...issue} />
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
 
-const App = () => <Users />
+const LabelsList = ({ activeLabels, onClickLabel }) => {
+  const { isError, isSuccess, isLoading, data, error } = useQuery({
+    queryKey: ["labels"],
+    queryFn: () =>
+      fetchLabels({ organization: "frontendbr", repository: "vagas" }),
+    refetchOnWindowFocus: false,
+    staleTime: Infinity,
+  })
+  return (
+    <div className="labelsListContainer">
+      <h2>Labels</h2>
+      {isError && <p>{error.message}</p>}
+      {isLoading && <p>Carregando Informações...</p>}
+      {isSuccess && (
+        <ul className="labelsList">
+          {data.map((label) => {
+            const isActive = activeLabels.some(
+              (activeLabel) => label.id === activeLabel.id,
+            )
+
+            return (
+              <Label
+                key={label.id}
+                isActive={isActive}
+                label={label}
+                activeLabel={activeLabels}
+                onClickLabel={onClickLabel}
+              />
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+const App = () => {
+  const [activeLabels, setActiveLabels] = useState([])
+
+  const markAsActive = (label) =>
+    setActiveLabels((prev) => {
+      const isAlreadyActive = prev.some(
+        (prevLabel) => prevLabel.id === label.id,
+      )
+
+      return isAlreadyActive
+        ? prev.filter((prevLabel) => prevLabel.id !== label.id)
+        : [...prev, label]
+    })
+  return (
+    <div className="app">
+      <IssuesList activeLabels={activeLabels} onClickLabel={markAsActive} />
+      <LabelsList activeLabels={activeLabels} onClickLabel={markAsActive} />
+    </div>
+  )
+}
 
 export { App }
