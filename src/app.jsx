@@ -111,7 +111,7 @@ const IssuesList = ({ activeLabels, onClickLabel }) => {
       formRef.current.reset()
     }
   }, [searchTerm])
-  const { isError, isSuccess, isLoading, data, error } = useQuery({
+  const issuesQuery = useQuery({
     queryKey: [
       "issues",
       { activeLabels: activeLabels.map(({ name }) => name) },
@@ -131,11 +131,11 @@ const IssuesList = ({ activeLabels, onClickLabel }) => {
     <div className="issuesListContainer">
       <h1>Vagas</h1>
       <SearchIssues onSearchIssues={searchIssues} formRef={formRef} />
-      {isError && <p>{error.message}</p>}
-      {isLoading && <p>Carregando Informações...</p>}
-      {isSuccess && (
+      {issuesQuery.isError && <p>{issuesQuery.error.message}</p>}
+      {issuesQuery.isLoading && <p>Carregando Informações...</p>}
+      {issuesQuery.isSuccess && (
         <ul className="issuesList">
-          {data.map((issue) => (
+          {issuesQuery.data.map((issue) => (
             <IssueItem key={issue.id} onClickLabel={onClickLabel} {...issue} />
           ))}
         </ul>
