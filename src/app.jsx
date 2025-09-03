@@ -39,6 +39,30 @@ const fetchLabels = () =>
       }))
     })
 
+const fetchSearchedIssues = (searchTerm) => {
+  const queryString =
+    "?q=" +
+    encodeURIComponent(`${searchTerm} repo:frontendbr/vagas is:issue is:open`)
+  return fetch(`https://api.github.com/search/issues${queryString}`).then(
+    (res) =>
+      res.json().then((data) =>
+        data.items.map((issue) => ({
+          id: issue.id,
+          state: issue.state,
+          title: issue.title,
+          createdAt: issue.created_at,
+          author: { username: issue.user.login, avatar: issue.user.avatar_url },
+          labels: issue.labels.map((label) => ({
+            id: label.id,
+            color: label.color,
+            name: label.name,
+          })),
+          url: issue.html_url,
+        })),
+      ),
+  )
+}
+
 const getFormattedDate = (date) => {
   const [year, month, day] = date.split("T")[0].split("-")
   return `${day}/${month}/${year}`
@@ -111,6 +135,16 @@ const IssuesList = ({ activeLabels, onClickLabel }) => {
       formRef.current.reset()
     }
   }, [searchTerm])
+
+  const searchedIssuesQuery = useQuery({
+    queryKey: ["searchedIssues", { searchTerm }],
+    queryFn: () => fetchSearchedIssues(searchTerm),
+    refetchOnWindowFocus: false,
+    staleTime: Infinity,
+    retry: false,
+    enabled: !!searchTerm,
+  })
+
   const issuesQuery = useQuery({
     queryKey: [
       "issues",
@@ -120,6 +154,7 @@ const IssuesList = ({ activeLabels, onClickLabel }) => {
     queryFn: () => fetchIssues(activeLabels),
     refetchOnWindowFocus: false,
     staleTime: Infinity,
+    retry: false,
   })
 
   const searchIssues = (e) => {
@@ -127,19 +162,26 @@ const IssuesList = ({ activeLabels, onClickLabel }) => {
     const { inputSearchIssues } = e.target.elements
     setSearchTerm(inputSearchIssues.value)
   }
+
+  const isLoading = issuesQuery.isLoading || searchedIssuesQuery.isLoading
+  const isError = issuesQuery.isError || searchedIssuesQuery.isError
+  const errorMessage =
+    issuesQuery.error?.message || searchedIssuesQuery.error?.message
+  const queryToBeDisplayed = searchedIssuesQuery.isSuccess
+    ? searchedIssuesQuery
+    : issuesQuery
+
   return (
     <div className="issuesListContainer">
       <h1>Vagas</h1>
       <SearchIssues onSearchIssues={searchIssues} formRef={formRef} />
-      {issuesQuery.isError && <p>{issuesQuery.error.message}</p>}
-      {issuesQuery.isLoading && <p>Carregando Informações...</p>}
-      {issuesQuery.isSuccess && (
-        <ul className="issuesList">
-          {issuesQuery.data.map((issue) => (
-            <IssueItem key={issue.id} onClickLabel={onClickLabel} {...issue} />
-          ))}
-        </ul>
-      )}
+      {isError && <p>{errorMessage}</p>}
+      {isLoading && <p>Carregando Informações...</p>}
+      <ul className="issuesList">
+        {queryToBeDisplayed.data?.map((issue) => (
+          <IssueItem key={issue.id} onClickLabel={onClickLabel} {...issue} />
+        ))}
+      </ul>
     </div>
   )
 }
