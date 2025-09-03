@@ -44,22 +44,22 @@ const fetchSearchedIssues = (searchTerm) => {
     "?q=" +
     encodeURIComponent(`${searchTerm} repo:frontendbr/vagas is:issue is:open`)
   return fetch(`https://api.github.com/search/issues${queryString}`).then(
-    (res) =>
-      res.json().then((data) =>
-        data.items.map((issue) => ({
-          id: issue.id,
-          state: issue.state,
-          title: issue.title,
-          createdAt: issue.created_at,
-          author: { username: issue.user.login, avatar: issue.user.avatar_url },
-          labels: issue.labels.map((label) => ({
-            id: label.id,
-            color: label.color,
-            name: label.name,
-          })),
-          url: issue.html_url,
+    (data) => ({
+      totalCount: data.total_count,
+      issues: data.items.map((issue) => ({
+        id: issue.id,
+        state: issue.state,
+        title: issue.title,
+        createdAt: issue.created_at,
+        author: { username: issue.user.login, avatar: issue.user.avatar_url },
+        labels: issue.labels.map((label) => ({
+          id: label.id,
+          color: label.color,
+          name: label.name,
         })),
-      ),
+        url: issue.html_url,
+      })),
+    }),
   )
 }
 
@@ -180,13 +180,14 @@ const IssuesList = ({ activeLabels, onClickLabel }) => {
   const isError = issuesQuery.isError || searchedIssuesQuery.isError
   const errorMessage =
     issuesQuery.error?.message || searchedIssuesQuery.error?.message
-  const queryToBeDisplayed = searchedIssuesQuery.isSuccess
-    ? searchedIssuesQuery
-    : issuesQuery
+  const titleMessage = `com o termo '${searchTerm}': ${searchedIssuesQuery.data?.totalCount}`
+  const dataToRender = searchedIssuesQuery.isSuccess
+    ? searchedIssuesQuery.data.issues
+    : issuesQuery.data
 
   return (
     <div className="issuesListContainer">
-      <h1>Vagas</h1>
+      <h1>Vagas {searchedIssuesQuery.isSuccess && titleMessage}</h1>
       <SearchIssues
         onSearchIssues={searchIssues}
         formRef={formRef}
@@ -196,7 +197,7 @@ const IssuesList = ({ activeLabels, onClickLabel }) => {
       {isError && <p>{errorMessage}</p>}
       {isLoading && <p>Carregando Informações...</p>}
       <ul className="issuesList">
-        {queryToBeDisplayed.data?.map((issue) => (
+        {dataToRender?.map((issue) => (
           <IssueItem key={issue.id} onClickLabel={onClickLabel} {...issue} />
         ))}
       </ul>
