@@ -43,8 +43,9 @@ const fetchSearchedIssues = (searchTerm) => {
   const queryString =
     "?q=" +
     encodeURIComponent(`${searchTerm} repo:frontendbr/vagas is:issue is:open`)
-  return fetch(`https://api.github.com/search/issues${queryString}`).then(
-    (data) => ({
+  return fetch(`https://api.github.com/search/issues${queryString}`)
+    .then((res) => res.json())
+    .then((data) => ({
       totalCount: data.total_count,
       issues: data.items.map((issue) => ({
         id: issue.id,
@@ -59,8 +60,7 @@ const fetchSearchedIssues = (searchTerm) => {
         })),
         url: issue.html_url,
       })),
-    }),
-  )
+    }))
 }
 
 const getFormattedDate = (date) => {
@@ -153,7 +153,7 @@ const IssuesList = ({ activeLabels, onClickLabel }) => {
     refetchOnWindowFocus: false,
     staleTime: Infinity,
     retry: false,
-    enabled: !!searchTerm,
+    enabled: Boolean(searchTerm),
   })
 
   const issuesQuery = useQuery({
@@ -192,7 +192,7 @@ const IssuesList = ({ activeLabels, onClickLabel }) => {
         onSearchIssues={searchIssues}
         formRef={formRef}
         searchedIssuesQuery={searchedIssuesQuery}
-        onCLearSearchedIssues={clearSearchedIssues}
+        onClearSearchedIssues={clearSearchedIssues}
       />
       {isError && <p>{errorMessage}</p>}
       {isLoading && <p>Carregando Informações...</p>}
