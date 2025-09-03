@@ -87,6 +87,21 @@ const IssueItem = ({
   </li>
 )
 
+const SearchIssues = () => (
+  <form>
+    <input
+      type="search"
+      name="inputSearchIssues"
+      className="inputSearchIssues"
+      placeholder="React"
+      minLength={2}
+      required
+      autoFocus
+    />
+    <button>Pesquisar</button>
+  </form>
+)
+
 const IssuesList = ({ activeLabels, onClickLabel }) => {
   const { isError, isSuccess, isLoading, data, error } = useQuery({
     queryKey: [
@@ -101,6 +116,7 @@ const IssuesList = ({ activeLabels, onClickLabel }) => {
   return (
     <div className="issuesListContainer">
       <h1>Vagas</h1>
+      <SearchIssues />
       {isError && <p>{error.message}</p>}
       {isLoading && <p>Carregando Informações...</p>}
       {isSuccess && (

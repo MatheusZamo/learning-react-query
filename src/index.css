@@ -66,3 +66,7 @@ ul {
 .activeLabel {
   filter: opacity(0.3);
 }
+
+.inputSearchIssues {
+  border: 0.1rem solid lightgrey;
+}
