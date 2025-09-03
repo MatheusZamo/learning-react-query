@@ -111,19 +111,29 @@ const IssueItem = ({
   </li>
 )
 
-const SearchIssues = ({ formRef, onSearchIssues }) => (
-  <form ref={formRef} onSubmit={onSearchIssues}>
-    <input
-      type="search"
-      name="inputSearchIssues"
-      className="inputSearchIssues"
-      placeholder="React"
-      minLength={2}
-      required
-      autoFocus
-    />
-    <button>Pesquisar</button>
-  </form>
+const SearchIssues = ({
+  formRef,
+  searchedIssuesQuery,
+  onSearchIssues,
+  onClearSearchedIssues,
+}) => (
+  <div className="searchIssues">
+    <form ref={formRef} onSubmit={onSearchIssues}>
+      <input
+        type="search"
+        name="inputSearchIssues"
+        className="inputSearchIssues"
+        placeholder="React"
+        minLength={2}
+        required
+        autoFocus
+      />
+      <button>Pesquisar</button>
+    </form>
+    {searchedIssuesQuery.data && (
+      <button onClick={onClearSearchedIssues}>Limpar Pesquisa</button>
+    )}
+  </div>
 )
 
 const IssuesList = ({ activeLabels, onClickLabel }) => {
@@ -163,6 +173,8 @@ const IssuesList = ({ activeLabels, onClickLabel }) => {
     setSearchTerm(inputSearchIssues.value)
   }
 
+  const clearSearchedIssues = () => setSearchTerm("")
+
   const isLoading = issuesQuery.isLoading || searchedIssuesQuery.isLoading
   const isError = issuesQuery.isError || searchedIssuesQuery.isError
   const errorMessage =
@@ -174,7 +186,12 @@ const IssuesList = ({ activeLabels, onClickLabel }) => {
   return (
     <div className="issuesListContainer">
       <h1>Vagas</h1>
-      <SearchIssues onSearchIssues={searchIssues} formRef={formRef} />
+      <SearchIssues
+        onSearchIssues={searchIssues}
+        formRef={formRef}
+        searchedIssuesQuery={searchedIssuesQuery}
+        onCLearSearchedIssues={clearSearchedIssues}
+      />
       {isError && <p>{errorMessage}</p>}
       {isLoading && <p>Carregando Informações...</p>}
       <ul className="issuesList">
