@@ -39,10 +39,13 @@ const fetchLabels = () =>
       }))
     })
 
-const fetchSearchedIssues = (searchTerm) => {
+const fetchSearchedIssues = ({ searchTerm, searchTerm }) => {
+  const labels = activeLabels.length > 0 ? `label:${activeLabels[0].name}` : ""
   const queryString =
     "?q=" +
-    encodeURIComponent(`${searchTerm} repo:frontendbr/vagas is:issue is:open`)
+    encodeURIComponent(
+      `${searchTerm} repo:frontendbr/vagas is:issue is:open ${labels}`,
+    )
   return fetch(`https://api.github.com/search/issues${queryString}`)
     .then((res) => res.json())
     .then((data) => ({
@@ -148,8 +151,8 @@ const IssuesList = ({ activeLabels, onClickLabel }) => {
   }, [searchTerm])
 
   const searchedIssuesQuery = useQuery({
-    queryKey: ["searchedIssues", { searchTerm }],
-    queryFn: () => fetchSearchedIssues(searchTerm),
+    queryKey: ["searchedIssues", { searchTerm, activeLabels }],
+    queryFn: () => fetchSearchedIssues({ searchTerm, activeLabels }),
     refetchOnWindowFocus: false,
     staleTime: Infinity,
     retry: false,
