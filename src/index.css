@@ -72,6 +72,15 @@ ul {
 }
 
 .searchIssues {
-  display: flex
-  gap: 1rem
+  display: flex;
+  gap: 1rem;
+}
+
+.paginationNav {
+  float: right;
+}
+
+.pagination {
+  display: flex;
+  gap: 1rem;
 }
