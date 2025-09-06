@@ -39,8 +39,11 @@ const fetchLabels = () =>
       }))
     })
 
-const fetchSearchedIssues = ({ searchTerm, searchTerm }) => {
-  const labels = activeLabels.length > 0 ? `label:${activeLabels[0].name}` : ""
+const fetchSearchedIssues = ({ searchTerm, activeLabels }) => {
+  const labels =
+    activeLabels.length > 0
+      ? activeLabels.map((label) => `label:${label.name}`).join(" ")
+      : ""
   const queryString =
     "?q=" +
     encodeURIComponent(
