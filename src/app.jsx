@@ -1,18 +1,32 @@
 import { useQuery } from "@tanstack/react-query"
 import { useEffect, useRef, useState } from "react"
 
-const fetchIssues = (activeLabels) => {
+const fetchIssues = ({ activeLabels, currentPage }) => {
   const labelsParam =
     activeLabels.length === 0
       ? ""
       : `?labels=${activeLabels.map((label) => label.name).join(",")}`
 
+  const pageParam = `?page=${currentPage}`
+  const perPageParam = `&per_page=10`
+
   return fetch(
-    `https://api.github.com/repos/frontendbr/vagas/issues${labelsParam}`,
+    `https://api.github.com/repos/frontendbr/vagas/issues${pageParam}${perPageParam}${labelsParam}`,
   )
-    .then((res) => res.json())
-    .then((data) => {
-      return data.map((issue) => ({
+    .then(async (res) => ({
+      issues: await res.json(),
+      pages: res.headers
+        ?.get("link")
+        ?.split(",")
+        .reduce((acc, str) => {
+          const key = `${str.match(/rel="([^"]+)"/)[1]}Page`
+          const value = +str.match(/\bpage=(\d+)/)[1]
+          return { ...acc, [key]: value }
+        }, {}),
+    }))
+    .then((data) => ({
+      ...data,
+      issues: data.issues.map((issue) => ({
         id: issue.id,
         state: issue.state,
         title: issue.title,
@@ -24,8 +38,8 @@ const fetchIssues = (activeLabels) => {
           name: label.name,
         })),
         url: issue.html_url,
-      }))
-    })
+      })),
+    }))
 }
 
 const fetchLabels = () =>
@@ -39,21 +53,35 @@ const fetchLabels = () =>
       }))
     })
 
-const fetchSearchedIssues = ({ searchTerm, activeLabels }) => {
+const fetchSearchedIssues = ({ currentPage, searchTerm, activeLabels }) => {
   const labels =
     activeLabels.length > 0
       ? activeLabels.map((label) => `label:${label.name}`).join(" ")
       : ""
   const queryString =
-    "?q=" +
+    `?per_page=10&page=${currentPage}&q=` +
     encodeURIComponent(
       `${searchTerm} repo:frontendbr/vagas is:issue is:open ${labels}`,
     )
   return fetch(`https://api.github.com/search/issues${queryString}`)
-    .then((res) => res.json())
+    .then(async (res) => {
+      const data = await res.json()
+      return {
+        issues: data.items,
+        totalCount: data.total_count,
+        pages: res.headers
+          ?.get("link")
+          ?.split(",")
+          .reduce((acc, str) => {
+            const key = `${str.match(/rel="([^"]+)"/)[1]}Page`
+            const value = +str.match(/\bpage=(\d+)/)[1]
+            return { ...acc, [key]: value }
+          }, {}),
+      }
+    })
     .then((data) => ({
-      totalCount: data.total_count,
-      issues: data.items.map((issue) => ({
+      ...data,
+      issues: data.issues.map((issue) => ({
         id: issue.id,
         state: issue.state,
         title: issue.title,
@@ -143,7 +171,44 @@ const SearchIssues = ({
   </div>
 )
 
-const IssuesList = ({ activeLabels, onClickLabel }) => {
+const Pagination = ({
+  queryToPaginate,
+  currentPage,
+  onClickPreviousPage,
+  onClickNextPage,
+}) => (
+  <nav className="paginationNav">
+    <ul className="pagination">
+      <li>
+        <button disabled={currentPage === 1} onClick={onClickPreviousPage}>
+          Anterior
+        </button>
+      </li>
+      <li>
+        <span>{currentPage}</span>
+      </li>
+      <li>
+        <button
+          disabled={
+            queryToPaginate.data && !queryToPaginate.data.pages.nextPage
+          }
+          onClick={onClickNextPage}
+        >
+          Próxima
+        </button>
+      </li>
+    </ul>
+  </nav>
+)
+
+const IssuesList = ({
+  currentPage,
+  activeLabels,
+  onClickLabel,
+  onClickPreviousPage,
+  onClickNextPage,
+  onResetCurrentPage,
+}) => {
   const [searchTerm, setSearchTerm] = useState("")
   const formRef = useRef(null)
 
@@ -154,8 +219,9 @@ const IssuesList = ({ activeLabels, onClickLabel }) => {
   }, [searchTerm])
 
   const searchedIssuesQuery = useQuery({
-    queryKey: ["searchedIssues", { searchTerm, activeLabels }],
-    queryFn: () => fetchSearchedIssues({ searchTerm, activeLabels }),
+    queryKey: ["searchedIssues", { searchTerm, activeLabels, currentPage }],
+    queryFn: () =>
+      fetchSearchedIssues({ currentPage, searchTerm, activeLabels }),
     refetchOnWindowFocus: false,
     staleTime: Infinity,
     retry: false,
@@ -178,6 +244,7 @@ const IssuesList = ({ activeLabels, onClickLabel }) => {
     e.preventDefault()
     const { inputSearchIssues } = e.target.elements
     setSearchTerm(inputSearchIssues.value)
+    onResetCurrentPage()
   }
 
   const clearSearchedIssues = () => setSearchTerm("")
@@ -187,6 +254,9 @@ const IssuesList = ({ activeLabels, onClickLabel }) => {
   const errorMessage =
     issuesQuery.error?.message || searchedIssuesQuery.error?.message
   const titleMessage = `com o termo '${searchTerm}': ${searchedIssuesQuery.data?.totalCount}`
+  const queryToPaginate = searchedIssuesQuery.isSuccess
+    ? searchedIssuesQuery
+    : issuesQuery
   const dataToRender = searchedIssuesQuery.isSuccess
     ? searchedIssuesQuery.data.issues
     : issuesQuery.data
@@ -207,19 +277,12 @@ const IssuesList = ({ activeLabels, onClickLabel }) => {
           <IssueItem key={issue.id} onClickLabel={onClickLabel} {...issue} />
         ))}
       </ul>
-      <nav className="paginationNav">
-        <ul className="pagination">
-          <li>
-            <button>Anterior</button>
-          </li>
-          <li>
-            <span>X</span>
-          </li>
-          <li>
-            <button>Próxima</button>
-          </li>
-        </ul>
-      </nav>
+      <Pagination
+        queryToPaginate={queryToPaginate}
+        currentPage={currentPage}
+        onClickPreviousPage={onClickPreviousPage}
+        onClickNextPage={onClickNextPage}
+      />
     </div>
   )
 }
@@ -258,8 +321,18 @@ const LabelsList = ({ activeLabels, onClickLabel }) => {
 
 const App = () => {
   const [activeLabels, setActiveLabels] = useState([])
+  const [currentPage, setCurrentPage] = useState(1)
 
-  const markAsActive = (label) =>
+  useEffect(() => {
+    scrollTo({ top: 0, left: 0, behavior: "smooth" })
+  }, [currentPage])
+
+  const resetCurrentPage = () => setCurrentPage(1)
+  const goToPreviousPage = () => setCurrentPage((prev) => prev - 1)
+  const goToNextPage = () => setCurrentPage((prev) => prev + 1)
+
+  const handleClickLabel = (label) => {
+    resetCurrentPage()
     setActiveLabels((prev) => {
       const isAlreadyActive = prev.some(
         (prevLabel) => prevLabel.id === label.id,
@@ -269,10 +342,18 @@ const App = () => {
         ? prev.filter((prevLabel) => prevLabel.id !== label.id)
         : [...prev, label]
     })
+  }
   return (
     <div className="app">
-      <IssuesList activeLabels={activeLabels} onClickLabel={markAsActive} />
-      <LabelsList activeLabels={activeLabels} onClickLabel={markAsActive} />
+      <IssuesList
+        activeLabels={activeLabels}
+        currentPage={currentPage}
+        onClickLabel={handleClickLabel}
+        onClickPreviousPage={goToPreviousPage}
+        onClickNextPage={goToNextPage}
+        onResetCurrentPage={resetCurrentPage}
+      />
+      <LabelsList activeLabels={activeLabels} onClickLabel={handleClickLabel} />
     </div>
   )
 }
