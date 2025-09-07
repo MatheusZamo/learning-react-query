@@ -1,15 +1,13 @@
 import { useQuery } from "@tanstack/react-query"
-import { useEffect, useRef, useState } from "react"
+import { useState, useEffect, useRef } from "react"
 
 const fetchIssues = ({ activeLabels, currentPage }) => {
   const labelsParam =
     activeLabels.length === 0
       ? ""
-      : `?labels=${activeLabels.map((label) => label.name).join(",")}`
-
+      : `&labels=${activeLabels.map((label) => label.name).join(",")}`
   const pageParam = `?page=${currentPage}`
   const perPageParam = `&per_page=10`
-
   return fetch(
     `https://api.github.com/repos/frontendbr/vagas/issues${pageParam}${perPageParam}${labelsParam}`,
   )
@@ -31,7 +29,7 @@ const fetchIssues = ({ activeLabels, currentPage }) => {
         state: issue.state,
         title: issue.title,
         createdAt: issue.created_at,
-        author: { name: issue.user.login, avatar: issue.user.avatar_url },
+        author: { username: issue.user.login, avatar: issue.user.avatar_url },
         labels: issue.labels.map((label) => ({
           id: label.id,
           color: label.color,
@@ -41,17 +39,6 @@ const fetchIssues = ({ activeLabels, currentPage }) => {
       })),
     }))
 }
-
-const fetchLabels = () =>
-  fetch(`https://api.github.com/repos/frontendbr/vagas/labels?per_page=100`)
-    .then((res) => res.json())
-    .then((data) => {
-      return data.map((label) => ({
-        id: label.id,
-        name: label.name,
-        color: label.color,
-      }))
-    })
 
 const fetchSearchedIssues = ({ currentPage, searchTerm, activeLabels }) => {
   const labels =
@@ -97,6 +84,17 @@ const fetchSearchedIssues = ({ currentPage, searchTerm, activeLabels }) => {
     }))
 }
 
+const fetchLabels = () =>
+  fetch("https://api.github.com/repos/frontendbr/vagas/labels?per_page=100")
+    .then((res) => res.json())
+    .then((data) =>
+      data.map((label) => ({
+        id: label.id,
+        name: label.name,
+        color: label.color,
+      })),
+    )
+
 const getFormattedDate = (date) => {
   const [year, month, day] = date.split("T")[0].split("-")
   return `${day}/${month}/${year}`
@@ -130,13 +128,13 @@ const IssueItem = ({
     </h3>
     <div className="createdBy">
       <p>
-        Criada em {getFormattedDate(createdAt)}, por {author.name}
+        Criada em {getFormattedDate(createdAt)}, por {author.username}
       </p>
-      <img src={author.avatar} alt={`Foto de ${author.name}`} />
+      <img src={author.avatar} alt={`Foto de ${author.username}`} />
     </div>
     {labels.length > 0 && (
       <p>
-        Labels:
+        Labels:{" "}
         {labels.map((label) => (
           <Label key={label.id} onClickLabel={onClickLabel} label={label} />
         ))}
@@ -225,19 +223,19 @@ const IssuesList = ({
     refetchOnWindowFocus: false,
     staleTime: Infinity,
     retry: false,
-    enabled: Boolean(searchTerm),
+    enabled: !!searchTerm,
   })
 
   const issuesQuery = useQuery({
     queryKey: [
       "issues",
-      { activeLabels: activeLabels.map(({ name }) => name) },
+      { activeLabels: activeLabels.map(({ name }) => name), currentPage },
       activeLabels,
     ],
-    queryFn: () => fetchIssues(activeLabels),
+    queryFn: () => fetchIssues({ activeLabels, currentPage }),
     refetchOnWindowFocus: false,
-    staleTime: Infinity,
     retry: false,
+    staleTime: Infinity,
   })
 
   const searchIssues = (e) => {
@@ -253,13 +251,13 @@ const IssuesList = ({
   const isError = issuesQuery.isError || searchedIssuesQuery.isError
   const errorMessage =
     issuesQuery.error?.message || searchedIssuesQuery.error?.message
-  const titleMessage = `com o termo '${searchTerm}': ${searchedIssuesQuery.data?.totalCount}`
+  const titleMessage = `com o termo "${searchTerm}": ${searchedIssuesQuery.data?.totalCount}`
   const queryToPaginate = searchedIssuesQuery.isSuccess
     ? searchedIssuesQuery
     : issuesQuery
   const dataToRender = searchedIssuesQuery.isSuccess
     ? searchedIssuesQuery.data.issues
-    : issuesQuery.data
+    : issuesQuery.data?.issues
 
   return (
     <div className="issuesListContainer">
@@ -271,7 +269,7 @@ const IssuesList = ({
         onClearSearchedIssues={clearSearchedIssues}
       />
       {isError && <p>{errorMessage}</p>}
-      {isLoading && <p>Carregando Informações...</p>}
+      {isLoading && <p>Carregando informações...</p>}
       <ul className="issuesList">
         {dataToRender?.map((issue) => (
           <IssueItem key={issue.id} onClickLabel={onClickLabel} {...issue} />
@@ -288,18 +286,18 @@ const IssuesList = ({
 }
 
 const LabelsList = ({ activeLabels, onClickLabel }) => {
-  const { isError, isSuccess, isLoading, data, error } = useQuery({
+  const { isError, isLoading, isSuccess, error, data } = useQuery({
     queryKey: ["labels"],
-    queryFn: () =>
-      fetchLabels({ organization: "frontendbr", repository: "vagas" }),
+    queryFn: fetchLabels,
     refetchOnWindowFocus: false,
     staleTime: Infinity,
   })
+
   return (
     <div className="labelsListContainer">
       <h2>Labels</h2>
       {isError && <p>{error.message}</p>}
-      {isLoading && <p>Carregando Informações...</p>}
+      {isLoading && <p>Carregando informações...</p>}
       {isSuccess && (
         <ul className="labelsList">
           {data.map((label) => (
@@ -309,7 +307,7 @@ const LabelsList = ({ activeLabels, onClickLabel }) => {
                 (activeLabel) => label.id === activeLabel.id,
               )}
               label={label}
-              activeLabel={activeLabels}
+              activeLabels={activeLabels}
               onClickLabel={onClickLabel}
             />
           ))}
@@ -327,22 +325,22 @@ const App = () => {
     scrollTo({ top: 0, left: 0, behavior: "smooth" })
   }, [currentPage])
 
+  const handleClickLabel = (clickedLabel) => {
+    resetCurrentPage()
+    setActiveLabels((prev) => {
+      const isAlreadyActive = prev.some(
+        (prevLabel) => prevLabel.id === clickedLabel.id,
+      )
+      return isAlreadyActive
+        ? prev.filter((prevLabel) => prevLabel.id !== clickedLabel.id)
+        : [...prev, clickedLabel]
+    })
+  }
+
   const resetCurrentPage = () => setCurrentPage(1)
   const goToPreviousPage = () => setCurrentPage((prev) => prev - 1)
   const goToNextPage = () => setCurrentPage((prev) => prev + 1)
 
-  const handleClickLabel = (label) => {
-    resetCurrentPage()
-    setActiveLabels((prev) => {
-      const isAlreadyActive = prev.some(
-        (prevLabel) => prevLabel.id === label.id,
-      )
-
-      return isAlreadyActive
-        ? prev.filter((prevLabel) => prevLabel.id !== label.id)
-        : [...prev, label]
-    })
-  }
   return (
     <div className="app">
       <IssuesList
