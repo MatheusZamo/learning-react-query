@@ -154,6 +154,34 @@ const SearchIssues = ({
   </div>
 )
 
+const Pagination = ({
+  issuesQuery,
+  currentPage,
+  onClickPreviousPage,
+  onClickNextPage,
+}) => (
+  <nav className="paginationNav">
+    <ul className="pagination">
+      <li>
+        <button disabled={currentPage === 1} onClick={onClickPreviousPage}>
+          Anterior
+        </button>
+      </li>
+      <li>
+        <span>{currentPage}</span>
+      </li>
+      <li>
+        <button
+          disabled={issuesQuery.data && !issuesQuery.data.pages?.nextPage}
+          onClick={onClickNextPage}
+        >
+          Próxima
+        </button>
+      </li>
+    </ul>
+  </nav>
+)
+
 const IssuesList = ({ activeLabels, onClickLabel }) => {
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
@@ -225,26 +253,12 @@ const IssuesList = ({ activeLabels, onClickLabel }) => {
           <IssueItem key={issue.id} onClickLabel={onClickLabel} {...issue} />
         ))}
       </ul>
-      <nav className="paginationNav">
-        <ul className="pagination">
-          <li>
-            <button disabled={currentPage === 1} onClick={goToPreviousPage}>
-              Anterior
-            </button>
-          </li>
-          <li>
-            <span>{currentPage}</span>
-          </li>
-          <li>
-            <button
-              disabled={issuesQuery.data && !issuesQuery.data.pages.nextPage}
-              onClick={goToNextPage}
-            >
-              Próxima
-            </button>
-          </li>
-        </ul>
-      </nav>
+      <Pagination
+        issuesQuery={issuesQuery}
+        currentPage={currentPage}
+        onClickPreviousPage={goToPreviousPage}
+        onClickNextPage={goToNextPage}
+      />
     </div>
   )
 }
