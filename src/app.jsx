@@ -7,9 +7,8 @@ const fetchIssues = ({ activeLabels, currentPage }) => {
       ? ""
       : `&labels=${activeLabels.map((label) => label.name).join(",")}`
   const pageParam = `?page=${currentPage}`
-  const perPageParam = `&per_page=10`
   return fetch(
-    `https://api.github.com/repos/frontendbr/vagas/issues${pageParam}${perPageParam}${labelsParam}`,
+    `https://api.github.com/repos/frontendbr/vagas/issues${pageParam}${labelsParam}`,
   )
     .then(async (res) => ({
       issues: await res.json(),
@@ -18,7 +17,7 @@ const fetchIssues = ({ activeLabels, currentPage }) => {
         ?.split(",")
         .reduce((acc, str) => {
           const key = `${str.match(/rel="([^"]+)"/)[1]}Page`
-          const value = +str.match(/\bpage=(\d+)/)[1]
+          const value = +str.match(/page=(\d+)/)[1]
           return { ...acc, [key]: value }
         }, {}),
     }))
@@ -40,35 +39,21 @@ const fetchIssues = ({ activeLabels, currentPage }) => {
     }))
 }
 
-const fetchSearchedIssues = ({ currentPage, searchTerm, activeLabels }) => {
+const fetchSearchedIssues = ({ searchTerm, activeLabels }) => {
   const labels =
     activeLabels.length > 0
       ? activeLabels.map((label) => `label:${label.name}`).join(" ")
       : ""
   const queryString =
-    `?per_page=10&page=${currentPage}&q=` +
+    "?q=" +
     encodeURIComponent(
       `${searchTerm} repo:frontendbr/vagas is:issue is:open ${labels}`,
     )
   return fetch(`https://api.github.com/search/issues${queryString}`)
-    .then(async (res) => {
-      const data = await res.json()
-      return {
-        issues: data.items,
-        totalCount: data.total_count,
-        pages: res.headers
-          ?.get("link")
-          ?.split(",")
-          .reduce((acc, str) => {
-            const key = `${str.match(/rel="([^"]+)"/)[1]}Page`
-            const value = +str.match(/\bpage=(\d+)/)[1]
-            return { ...acc, [key]: value }
-          }, {}),
-      }
-    })
+    .then((res) => res.json())
     .then((data) => ({
-      ...data,
-      issues: data.issues.map((issue) => ({
+      totalCount: data.total_count,
+      issues: data.items.map((issue) => ({
         id: issue.id,
         state: issue.state,
         title: issue.title,
@@ -169,46 +154,14 @@ const SearchIssues = ({
   </div>
 )
 
-const Pagination = ({
-  queryToPaginate,
-  currentPage,
-  onClickPreviousPage,
-  onClickNextPage,
-}) => (
-  <nav className="paginationNav">
-    <ul className="pagination">
-      <li>
-        <button disabled={currentPage === 1} onClick={onClickPreviousPage}>
-          Anterior
-        </button>
-      </li>
-      <li>
-        <span>{currentPage}</span>
-      </li>
-      <li>
-        <button
-          disabled={
-            queryToPaginate.data && !queryToPaginate.data.pages.nextPage
-          }
-          onClick={onClickNextPage}
-        >
-          Próxima
-        </button>
-      </li>
-    </ul>
-  </nav>
-)
-
-const IssuesList = ({
-  currentPage,
-  activeLabels,
-  onClickLabel,
-  onClickPreviousPage,
-  onClickNextPage,
-  onResetCurrentPage,
-}) => {
+const IssuesList = ({ activeLabels, onClickLabel }) => {
   const [searchTerm, setSearchTerm] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
   const formRef = useRef(null)
+
+  useEffect(() => {
+    scrollTo({ top: 0, left: 0, behavior: "smooth" })
+  }, [currentPage])
 
   useEffect(() => {
     if (searchTerm.length > 0) {
@@ -217,9 +170,8 @@ const IssuesList = ({
   }, [searchTerm])
 
   const searchedIssuesQuery = useQuery({
-    queryKey: ["searchedIssues", { searchTerm, activeLabels, currentPage }],
-    queryFn: () =>
-      fetchSearchedIssues({ currentPage, searchTerm, activeLabels }),
+    queryKey: ["searchedIssues", { searchTerm, activeLabels }],
+    queryFn: () => fetchSearchedIssues({ searchTerm, activeLabels }),
     refetchOnWindowFocus: false,
     staleTime: Infinity,
     retry: false,
@@ -242,19 +194,17 @@ const IssuesList = ({
     e.preventDefault()
     const { inputSearchIssues } = e.target.elements
     setSearchTerm(inputSearchIssues.value)
-    onResetCurrentPage()
   }
 
   const clearSearchedIssues = () => setSearchTerm("")
+  const goToPreviousPage = () => setCurrentPage((prev) => prev - 1)
+  const goToNextPage = () => setCurrentPage((prev) => prev + 1)
 
   const isLoading = issuesQuery.isLoading || searchedIssuesQuery.isLoading
   const isError = issuesQuery.isError || searchedIssuesQuery.isError
   const errorMessage =
     issuesQuery.error?.message || searchedIssuesQuery.error?.message
   const titleMessage = `com o termo "${searchTerm}": ${searchedIssuesQuery.data?.totalCount}`
-  const queryToPaginate = searchedIssuesQuery.isSuccess
-    ? searchedIssuesQuery
-    : issuesQuery
   const dataToRender = searchedIssuesQuery.isSuccess
     ? searchedIssuesQuery.data.issues
     : issuesQuery.data?.issues
@@ -275,12 +225,26 @@ const IssuesList = ({
           <IssueItem key={issue.id} onClickLabel={onClickLabel} {...issue} />
         ))}
       </ul>
-      <Pagination
-        queryToPaginate={queryToPaginate}
-        currentPage={currentPage}
-        onClickPreviousPage={onClickPreviousPage}
-        onClickNextPage={onClickNextPage}
-      />
+      <nav className="paginationNav">
+        <ul className="pagination">
+          <li>
+            <button disabled={currentPage === 1} onClick={goToPreviousPage}>
+              Anterior
+            </button>
+          </li>
+          <li>
+            <span>{currentPage}</span>
+          </li>
+          <li>
+            <button
+              disabled={issuesQuery.data && !issuesQuery.data.pages.nextPage}
+              onClick={goToNextPage}
+            >
+              Próxima
+            </button>
+          </li>
+        </ul>
+      </nav>
     </div>
   )
 }
@@ -319,39 +283,20 @@ const LabelsList = ({ activeLabels, onClickLabel }) => {
 
 const App = () => {
   const [activeLabels, setActiveLabels] = useState([])
-  const [currentPage, setCurrentPage] = useState(1)
-
-  useEffect(() => {
-    scrollTo({ top: 0, left: 0, behavior: "smooth" })
-  }, [currentPage])
-
-  const handleClickLabel = (clickedLabel) => {
-    resetCurrentPage()
+  const markAsActive = (label) =>
     setActiveLabels((prev) => {
       const isAlreadyActive = prev.some(
-        (prevLabel) => prevLabel.id === clickedLabel.id,
+        (prevLabel) => prevLabel.id === label.id,
       )
       return isAlreadyActive
-        ? prev.filter((prevLabel) => prevLabel.id !== clickedLabel.id)
-        : [...prev, clickedLabel]
+        ? prev.filter((prevLabel) => prevLabel.id !== label.id)
+        : [...prev, label]
     })
-  }
-
-  const resetCurrentPage = () => setCurrentPage(1)
-  const goToPreviousPage = () => setCurrentPage((prev) => prev - 1)
-  const goToNextPage = () => setCurrentPage((prev) => prev + 1)
 
   return (
     <div className="app">
-      <IssuesList
-        activeLabels={activeLabels}
-        currentPage={currentPage}
-        onClickLabel={handleClickLabel}
-        onClickPreviousPage={goToPreviousPage}
-        onClickNextPage={goToNextPage}
-        onResetCurrentPage={resetCurrentPage}
-      />
-      <LabelsList activeLabels={activeLabels} onClickLabel={handleClickLabel} />
+      <IssuesList activeLabels={activeLabels} onClickLabel={markAsActive} />
+      <LabelsList activeLabels={activeLabels} onClickLabel={markAsActive} />
     </div>
   )
 }
