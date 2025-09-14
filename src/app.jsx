@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, keepPreviousData } from "@tanstack/react-query"
 import { useState, useEffect, useRef } from "react"
 
 const fetchIssues = ({ currentPage, searchTerm = "", activeLabels }) => {
@@ -184,6 +184,7 @@ const IssuesList = ({
     refetchOnWindowFocus: false,
     staleTime: Infinity,
     retry: false,
+    placeholderData: keepPreviousData,
   })
 
   const searchIssues = (e) => {
