@@ -1,3 +1,5 @@
+import { parse } from "marked"
+import DOMPurify from "dompurify"
 import { Link, useLoaderData } from "react-router"
 
 const IssueDetails = () => {
@@ -7,7 +9,11 @@ const IssueDetails = () => {
     <>
       <Link to="/">Voltar</Link>
       <h2>{data.title}</h2>
-      <p>{data.body}</p>
+      <main
+        dangerouslySetInnerHTML={{
+          __html: DOMPurify.sanitize(parse(data.body)),
+        }}
+      />
     </>
   )
 }
