@@ -10,6 +10,7 @@ import {
   Route,
   RouterProvider,
 } from "react-router"
+import { IssueDetails } from "./issue-details.jsx"
 
 const rootElement = document.querySelector('[data-js="root"]')
 const root = createRoot(rootElement)
@@ -19,6 +20,7 @@ const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="\">
       <Route index element={<App />} />
+      <Route path="issues/:id" element={<IssueDetails />} />
     </Route>,
   ),
 )
