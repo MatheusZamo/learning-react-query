@@ -19,12 +19,12 @@ const queryClient = new QueryClient()
 
 const router = createBrowserRouter(
   createRoutesFromElements(
-    <Route path="\">
+    <Route>
       <Route index element={<App />} />
       <Route
         path="issues/:issueNumber"
         element={<IssueDetails />}
-        loader={issueDetailsLoader}
+        loader={issueDetailsLoader(queryClient)}
       />
     </Route>,
   ),
