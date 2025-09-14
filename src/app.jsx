@@ -11,20 +11,34 @@ const fetchIssues = ({ currentPage, searchTerm = "", activeLabels }) => {
     encodeURIComponent(
       `${searchTerm} repo:frontendbr/vagas is:issue is:open sort:created-desc ${labels}`,
     )
+
   return fetch(`https://api.github.com/search/issues${queryString}`)
     .then(async (res) => {
       const data = await res.json()
+
+      // Correção do bug: verificar se o header 'link' existe e se os matches são válidos
+      let pages = {}
+      const linkHeader = res.headers?.get("link")
+
+      if (linkHeader) {
+        pages = linkHeader.split(",").reduce((acc, str) => {
+          const relMatch = str.match(/rel="([^"]+)"/)
+          const pageMatch = str.match(/\bpage=(\d+)/)
+
+          // Só processa se ambos os matches foram encontrados
+          if (relMatch && pageMatch) {
+            const key = `${relMatch[1]}Page`
+            const value = +pageMatch[1]
+            return { ...acc, [key]: value }
+          }
+          return acc
+        }, {})
+      }
+
       return {
         issues: data.items,
         totalCount: data.total_count,
-        pages: res.headers
-          ?.get("link")
-          ?.split(",")
-          .reduce((acc, str) => {
-            const key = `${str.match(/rel="([^"]+)"/)[1]}Page`
-            const value = +str.match(/\bpage=(\d+)/)[1]
-            return { ...acc, [key]: value }
-          }, {}),
+        pages,
       }
     })
     .then((data) => ({
