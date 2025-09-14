@@ -56,6 +56,7 @@ const fetchIssues = ({ currentPage, searchTerm = "", activeLabels }) => {
           name: label.name,
         })),
         url: issue.html_url,
+        number: issue.number,
       })),
     }))
 }
@@ -92,13 +93,13 @@ const IssueItem = ({
   createdAt,
   labels,
   author,
-  id,
+  number,
   onClickLabel,
 }) => (
   <li>
     <span>{state}</span>
     <h3>
-      <Link to={`issues/${id}`}>{title}</Link>
+      <Link to={`issues/${number}`}>{title}</Link>
     </h3>
     <div className="createdBy">
       <p>
@@ -110,7 +111,7 @@ const IssueItem = ({
       <p>
         Labels:{" "}
         {labels.map((label) => (
-          <Label key={label.id} onClickLabel={onClickLabel} label={label} />
+          <Label key={label.number} onClickLabel={onClickLabel} label={label} />
         ))}
       </p>
     )}

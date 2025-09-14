@@ -11,6 +11,7 @@ import {
   RouterProvider,
 } from "react-router"
 import { IssueDetails } from "./issue-details.jsx"
+import { issueDetailsLoader } from "./issue-details-loader.js"
 
 const rootElement = document.querySelector('[data-js="root"]')
 const root = createRoot(rootElement)
@@ -20,7 +21,11 @@ const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="\">
       <Route index element={<App />} />
-      <Route path="issues/:id" element={<IssueDetails />} />
+      <Route
+        path="issues/:issueNumber"
+        element={<IssueDetails />}
+        loader={issueDetailsLoader}
+      />
     </Route>,
   ),
 )
