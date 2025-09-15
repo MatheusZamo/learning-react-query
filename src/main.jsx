@@ -15,7 +15,16 @@ import { issueDetailsLoader } from "./issue-details-loader.js"
 
 const rootElement = document.querySelector('[data-js="root"]')
 const root = createRoot(rootElement)
-const queryClient = new QueryClient()
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      staleTime: Infinity,
+      retry: false,
+    },
+  },
+})
 
 const router = createBrowserRouter(
   createRoutesFromElements(

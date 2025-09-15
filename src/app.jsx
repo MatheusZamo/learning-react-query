@@ -195,9 +195,6 @@ const IssuesList = ({
   const issuesQuery = useQuery({
     queryKey: ["issues", { searchTerm, activeLabels, currentPage }],
     queryFn: () => fetchIssues({ currentPage, searchTerm, activeLabels }),
-    refetchOnWindowFocus: false,
-    staleTime: Infinity,
-    retry: false,
     placeholderData: keepPreviousData,
   })
 
@@ -251,8 +248,6 @@ const LabelsList = ({ activeLabels, onClickLabel }) => {
   const { isError, isLoading, isSuccess, error, data } = useQuery({
     queryKey: ["labels"],
     queryFn: fetchLabels,
-    refetchOnWindowFocus: false,
-    staleTime: Infinity,
   })
 
   return (

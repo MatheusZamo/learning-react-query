@@ -8,9 +8,6 @@ const IssueDetails = () => {
   const params = useParams()
   const issueDetailsQuery = useQuery({
     ...getIssueDetailsQuery(params.issueNumber),
-    refetchOnWindowFocus: false,
-    staleTime: Infinity,
-    retry: false,
   })
 
   return (
