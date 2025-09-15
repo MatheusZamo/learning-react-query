@@ -2,7 +2,8 @@ import { useQuery, keepPreviousData } from "@tanstack/react-query"
 import { useState, useEffect, useRef } from "react"
 import { Link } from "react-router"
 
-const fetchIssues = ({ currentPage, searchTerm = "", activeLabels }) => {
+const fetchIssues = ({ queryKey }) => {
+  const [, { currentPage, searchTerm = "", activeLabels }] = queryKey
   const labels =
     activeLabels.length > 0
       ? activeLabels.map((label) => `label:${label.name}`).join(" ")
@@ -194,7 +195,7 @@ const IssuesList = ({
 
   const issuesQuery = useQuery({
     queryKey: ["issues", { searchTerm, activeLabels, currentPage }],
-    queryFn: () => fetchIssues({ currentPage, searchTerm, activeLabels }),
+    queryFn: fetchIssues,
     placeholderData: keepPreviousData,
   })
 
@@ -226,7 +227,7 @@ const IssuesList = ({
           <ul className="issuesList">
             {issuesQuery.data.issues.map((issue) => (
               <IssueItem
-                key={issue.id}
+                key={issue.number}
                 onClickLabel={onClickLabel}
                 {...issue}
               />
