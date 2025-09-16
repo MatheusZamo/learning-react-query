@@ -6,7 +6,7 @@ const fetchIssues = ({ queryKey }) => {
   const [, { currentPage, searchTerm = "", activeLabels }] = queryKey
   const labels =
     activeLabels.length > 0
-      ? activeLabels.map((label) => `label:${label.name}`).join(" ")
+      ? activeLabels.map((label) => `label:"${label.name}"`).join(" ")
       : ""
   const queryString =
     `?per_page=10&page=${currentPage}&q=` +
