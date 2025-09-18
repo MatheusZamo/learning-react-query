@@ -2,7 +2,7 @@ import { useQuery, keepPreviousData } from "@tanstack/react-query"
 import { useState, useEffect, useRef } from "react"
 import { Link } from "react-router"
 
-const fetchIssues = ({ queryKey }) => {
+const getIssuesUrl = (queryKey) => {
   const [, { currentPage, searchTerm = "", activeLabels }] = queryKey
   const labels =
     activeLabels.length > 0
@@ -13,34 +13,25 @@ const fetchIssues = ({ queryKey }) => {
     encodeURIComponent(
       `${searchTerm} repo:frontendbr/vagas is:issue is:open sort:created-desc ${labels}`,
     )
+  return `https://api.github.com/search/issues${queryString}`
+}
 
-  return fetch(`https://api.github.com/search/issues${queryString}`)
+const fetchIssues = ({ queryKey }) =>
+  fetch(getIssuesUrl(queryKey))
     .then(async (res) => {
       const data = await res.json()
-
-      // Correção do bug: verificar se o header 'link' existe e se os matches são válidos
-      let pages = {}
-      const linkHeader = res.headers?.get("link")
-
-      if (linkHeader) {
-        pages = linkHeader.split(",").reduce((acc, str) => {
-          const relMatch = str.match(/rel="([^"]+)"/)
-          const pageMatch = str.match(/\bpage=(\d+)/)
-
-          // Só processa se ambos os matches foram encontrados
-          if (relMatch && pageMatch) {
-            const key = `${relMatch[1]}Page`
-            const value = +pageMatch[1]
-            return { ...acc, [key]: value }
-          }
-          return acc
-        }, {})
-      }
-
       return {
         issues: data.items,
         totalCount: data.total_count,
-        pages,
+        page: res.headers
+          ?.get("link")
+          ?.split(",")
+          .reduce((acc, str) => {
+            const key = `${str.match(/rel="([^"]+)"/)[1]}Page`
+            const value = +str.match(/\bpage=(\d+)/)[1]
+
+            return { ...acc, [key]: value }
+          }, {}),
       }
     })
     .then((data) => ({
@@ -60,7 +51,6 @@ const fetchIssues = ({ queryKey }) => {
         number: issue.number,
       })),
     }))
-}
 
 const fetchLabels = () =>
   fetch("https://api.github.com/repos/frontendbr/vagas/labels?per_page=100")
